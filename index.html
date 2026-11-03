@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f1e7">
+<title>犬の散歩当番</title>
+<style>
+  :root {
+    --bg: #f6f1e7;
+    --surface: #fffdf8;
+    --ink: #2b2a27;
+    --muted: #8a8478;
+    --line: #e4ddcc;
+    --today: #2b2a27;
+    --father: #3f7cc4;
+    --mother: #d9577f;
+    --sister: #7a5cc7;
+    --brother: #e08a1e;
+    --sun: #c8503c;
+    --sat: #3f7cc4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1d1c19;
+      --surface: #292723;
+      --ink: #f1ece0;
+      --muted: #9c9686;
+      --line: #3b3832;
+      --today: #f1ece0;
+      --father: #6ba3e8;
+      --mother: #f07fa3;
+      --sister: #a58cf0;
+      --brother: #f2a748;
+      --sun: #ee7a66;
+      --sat: #6ba3e8;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+    min-height: 100vh;
+  }
+  .app { max-width: 520px; margin: 0 auto; padding: 14px 10px 28px; }
+
+  header { display: flex; align-items: center; gap: 10px; padding: 4px 6px 12px; }
+  header .paw { font-size: 26px; line-height: 1; }
+  header h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: .02em; }
+  #status { margin-left: auto; font-size: 11px; color: var(--muted); text-align: right; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 10px; }
+  .nav .title { font-size: 22px; font-weight: 700; }
+  .nav .title small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .nav button {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    height: 40px; min-width: 40px; border-radius: 12px; font-size: 18px; padding: 0 12px;
+    font-family: inherit;
+  }
+  .nav .group { display: flex; gap: 6px; }
+  .nav .today-btn { font-size: 13px; }
+
+  .calendar {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden;
+  }
+  .dow, .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .dow div { text-align: center; font-size: 12px; padding: 8px 0 6px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .dow div:first-child { color: var(--sun); }
+  .dow div:last-child { color: var(--sat); }
+
+  .cell {
+    position: relative; min-height: 66px; padding: 4px 3px 5px;
+    border: 0; background: transparent; color: inherit; font-family: inherit;
+    border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    cursor: pointer;
+  }
+  .cell:nth-child(7n) { border-right: 0; }
+  .cell.empty { cursor: default; background: color-mix(in srgb, var(--bg) 45%, transparent); }
+  .cell:not(.empty):active { background: color-mix(in srgb, var(--line) 60%, transparent); }
+  .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .num { font-size: 13px; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; text-align: center; }
+  .cell.sun .num { color: var(--sun); }
+  .cell.sat .num { color: var(--sat); }
+  .cell.today .num { background: var(--today); color: var(--bg); font-weight: 700; }
+  .chip {
+    font-size: 17px; font-weight: 700; color: #fff; width: 34px; height: 30px; line-height: 30px;
+    border-radius: 10px; text-align: center;
+  }
+  .chip.father { background: var(--father); }
+  .chip.mother { background: var(--mother); }
+  .chip.sister { background: var(--sister); }
+  .chip.brother { background: var(--brother); }
+  @media (prefers-color-scheme: dark) { .chip { color: #1d1c19; } }
+
+  .summary { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .summary h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 500; }
+  .sum-row { display: flex; gap: 8px; }
+  .sum-item { flex: 1; text-align: center; }
+  .sum-item .chip { display: inline-block; width: 30px; height: 26px; line-height: 26px; font-size: 15px; }
+  .sum-item .n { display: block; margin-top: 4px; font-size: 18px; font-weight: 700; }
+  .sum-item .n small { font-size: 11px; font-weight: 400; color: var(--muted); }
+
+  .note { margin: 14px 6px 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* bottom sheet */
+  .backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none;
+    transition: opacity .18s ease; z-index: 10;
+  }
+  .backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 11;
+    max-width: 520px; margin: 0 auto;
+    background: var(--surface); border-radius: 22px 22px 0 0;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%); transition: transform .22s ease;
+    box-shadow: 0 -8px 30px rgba(0,0,0,.2);
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet h3 { margin: 0 0 4px; font-size: 18px; }
+  .sheet p { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+  .choices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .choice {
+    border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+    border-radius: 16px; padding: 16px 0 12px; font-family: inherit; font-size: 26px; font-weight: 700;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .choice span { font-size: 11px; font-weight: 400; color: var(--muted); }
+  .choice.father.sel { border-color: var(--father); background: color-mix(in srgb, var(--father) 16%, var(--bg)); }
+  .choice.mother.sel { border-color: var(--mother); background: color-mix(in srgb, var(--mother) 16%, var(--bg)); }
+  .choice.sister.sel { border-color: var(--sister); background: color-mix(in srgb, var(--sister) 16%, var(--bg)); }
+  .choice.brother.sel { border-color: var(--brother); background: color-mix(in srgb, var(--brother) 16%, var(--bg)); }
+  .choice:active { transform: scale(.97); }
+  .sheet-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .sheet-actions button {
+    flex: 1; height: 46px; border-radius: 14px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); font-family: inherit; font-size: 15px;
+  }
+  .sheet-actions .clear { color: var(--sun); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet, .backdrop { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="paw" aria-hidden="true">🐕</div>
+    <h1>犬の散歩当番</h1>
+    <div id="status"></div>
+  </header>
+
+  <div class="nav">
+    <div class="title" id="monthTitle"></div>
+    <div class="group">
+      <button id="prev" aria-label="前の月">‹</button>
+      <button id="todayBtn" class="today-btn">今日</button>
+      <button id="next" aria-label="次の月">›</button>
+    </div>
+  </div>
+
+  <div class="calendar">
+    <div class="dow"><div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div></div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="summary">
+    <h2 id="sumTitle">今月の回数</h2>
+    <div class="sum-row" id="sumRow"></div>
+  </div>
+
+  <p class="note">日付をタップして、散歩に行く人を選んでください。</p>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <h3 id="sheetTitle"></h3>
+  <p>散歩に行く人を選んでください</p>
+  <div class="choices" id="choices"></div>
+  <div class="sheet-actions">
+    <button class="clear" id="clearBtn">選択を消す</button>
+    <button id="closeBtn">閉じる</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// 設定：家族みんなで同じ予定を共有したい場合は、
+// Firebase Realtime Database の URL をここに入れてください。
+// 例: "https://my-dog-walk-default-rtdb.firebaseio.com"
+// 空のままだと、この端末（ブラウザ）の中だけに保存されます。
+const FIREBASE_URL = "";
+// ─────────────────────────────────────────────
+
+const PEOPLE = [
+  { id: "father",  label: "父" },
+  { id: "mother",  label: "母" },
+  { id: "sister",  label: "姉" },
+  { id: "brother", label: "弟" }
+];
+const LABEL = Object.fromEntries(PEOPLE.map(p => [p.id, p.label]));
+const STORE_KEY = "dogWalkSchedule.v1";
+const DOW = ["日", "月", "火", "水", "木", "金", "土"];
+
+let data = {};
+try { data = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch (e) { data = {}; }
+
+const now = new Date();
+let viewY = now.getFullYear();
+let viewM = now.getMonth();
+let selectedKey = null;
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const keyOf = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+const baseUrl = FIREBASE_URL.replace(/\/+$/, "");
+
+function saveLocal() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+function setStatus(text) { $("status").textContent = text; }
+
+// ── 描画 ──
+function render() {
+  $("monthTitle").innerHTML = `${viewY}年<small></small>${viewM + 1}月`;
+  $("monthTitle").innerHTML = `${viewM + 1}月<small>${viewY}</small>`;
+
+  const first = new Date(viewY, viewM, 1).getDay();
+  const days = new Date(viewY, viewM + 1, 0).getDate();
+  const today = keyOf(now.getFullYear(), now.getMonth(), now.getDate());
+  const grid = $("grid");
+  grid.innerHTML = "";
+
+  const total = Math.ceil((first + days) / 7) * 7;
+  for (let i = 0; i < total; i++) {
+    const d = i - first + 1;
+    const cell = document.createElement("button");
+    cell.type = "button";
+    if (d < 1 || d > days) {
+      cell.className = "cell empty";
+      cell.disabled = true;
+      grid.appendChild(cell);
+      continue;
+    }
+    const k = keyOf(viewY, viewM, d);
+    const dow = i % 7;
+    cell.className = "cell" + (dow === 0 ? " sun" : dow === 6 ? " sat" : "") + (k === today ? " today" : "");
+    const who = data[k];
+    cell.setAttribute("aria-label", `${viewM + 1}月${d}日 ${who ? LABEL[who] : "未定"}`);
+    cell.innerHTML = `<span class="num">${d}</span>` + (who && LABEL[who] ? `<span class="chip ${who}">${LABEL[who]}</span>` : "");
+    cell.addEventListener("click", () => openSheet(k, d, dow));
+    grid.appendChild(cell);
+  }
+  renderSummary();
+}
+
+function renderSummary() {
+  const prefix = `${viewY}-${pad(viewM + 1)}-`;
+  const counts = Object.fromEntries(PEOPLE.map(p => [p.id, 0]));
+  for (const k in data) if (k.startsWith(prefix) && counts[data[k]] !== undefined) counts[data[k]]++;
+  $("sumTitle").textContent = `${viewM + 1}月の回数`;
+  $("sumRow").innerHTML = PEOPLE.map(p =>
+    `<div class="sum-item"><span class="chip ${p.id}">${p.label}</span><span class="n">${counts[p.id]}<small> 回</small></span></div>`
+  ).join("");
+}
+
+// ── 選択シート ──
+function openSheet(k, d, dow) {
+  selectedKey = k;
+  $("sheetTitle").textContent = `${viewM + 1}月${d}日（${DOW[dow]}）`;
+  const cur = data[k];
+  $("choices").innerHTML = PEOPLE.map(p =>
+    `<button type="button" class="choice ${p.id}${cur === p.id ? " sel" : ""}" data-id="${p.id}">${p.label}</button>`
+  ).join("");
+  $("choices").querySelectorAll(".choice").forEach(b =>
+    b.addEventListener("click", () => choose(b.dataset.id))
+  );
+  $("clearBtn").style.visibility = cur ? "visible" : "hidden";
+  $("sheet").classList.add("open");
+  $("backdrop").classList.add("open");
+}
+function closeSheet() {
+  $("sheet").classList.remove("open");
+  $("backdrop").classList.remove("open");
+  selectedKey = null;
+}
+function choose(id) {
+  if (!selectedKey) return;
+  setWalk(selectedKey, data[selectedKey] === id ? null : id);
+  closeSheet();
+}
+
+// ── 保存・共有 ──
+async function setWalk(k, id) {
+  if (id) data[k] = id; else delete data[k];
+  saveLocal();
+  render();
+  if (!baseUrl) return;
+  try {
+    const res = await fetch(`${baseUrl}/walks/${k}.json`, {
+      method: id ? "PUT" : "DELETE",
+      body: id ? JSON.stringify(id) : undefined
+    });
+    if (!res.ok) throw new Error(res.status);
+    setStatus("共有中");
+  } catch (e) {
+    setStatus("共有に失敗しました");
+  }
+}
+
+async function loadRemote() {
+  if (!baseUrl) return;
+  try {
+    const res = await fetch(`${baseUrl}/walks.json`, { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const remote = await res.json();
+    data = remote && typeof remote === "object" ? remote : {};
+    saveLocal();
+    if (selectedKey === null) render();
+    setStatus("共有中");
+  } catch (e) {
+    setStatus("オフライン");
+  }
+}
+
+// ── イベント ──
+$("prev").addEventListener("click", () => { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); });
+$("next").addEventListener("click", () => { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); });
+$("todayBtn").addEventListener("click", () => { viewY = now.getFullYear(); viewM = now.getMonth(); render(); });
+$("backdrop").addEventListener("click", closeSheet);
+$("closeBtn").addEventListener("click", closeSheet);
+$("clearBtn").addEventListener("click", () => { if (selectedKey) setWalk(selectedKey, null); closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+// 左右スワイプで月を切り替え
+let sx = null;
+$("grid").addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive: true });
+$("grid").addEventListener("touchend", e => {
+  if (sx === null) return;
+  const dx = e.changedTouches[0].clientX - sx;
+  sx = null;
+  if (Math.abs(dx) > 60) $(dx < 0 ? "next" : "prev").click();
+}, { passive: true });
+
+render();
+if (baseUrl) {
+  setStatus("読み込み中…");
+  loadRemote();
+  setInterval(() => { if (!document.hidden) loadRemote(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadRemote(); });
+} else {
+  setStatus("この端末のみ保存");
+}
+</script>
+</body>
+</html>
